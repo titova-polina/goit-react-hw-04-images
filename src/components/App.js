@@ -1,77 +1,84 @@
-import { Component } from 'react';
 import { SearchBar } from './Searchbar/Searchbar';
 import { LoadMoreBtn } from './Button/Button';
 import { ImageGallery } from './ImageGallery/ImageGallery';
 import { PER_PAGE, fetchImages } from './API';
 import { Loader } from './Loader/Loader';
 import { ModalElement } from './Modal/Modal';
+import { useEffect, useState } from 'react';
 
-export class App extends Component {
-  state = {
-    query: '',
-    images: [],
-    page: 1,
-    loading: false,
-    total: 0,
-    isModalOpen: false,
+export const App = () => {
+  const [query, setQuery] = useState('');
+  const [images, setImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalSrc, setModalSrc] = useState('');
+  const [modalAlt, setModalAlt] = useState('');
+
+  const openModal = ({ srcDataModal, altDataModal }) => {
+    setIsModalOpen(true);
+    setModalSrc(srcDataModal);
+    setModalAlt(altDataModal);
   };
 
-  openModal = ({ srcDataModal, altDataModal }) =>
-    this.setState({ isModalOpen: true, srcDataModal, altDataModal });
-
-  closeModal = () => this.setState({ isModalOpen: false });
-
-  changeQuery = newQuery => {
-    this.setState({
-      query: newQuery,
-      images: [],
-      page: 1,
-      total: 0,
-      loading: true,
-    });
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setModalSrc('');
+    setModalAlt('');
   };
 
-  async componentDidUpdate(prevProps, prevState) {
-    if (
-      prevState.query !== this.state.query ||
-      prevState.page !== this.state.page
-    ) {
-      const { hits = [], totalHits = 0 } = await fetchImages(
-        this.state.query,
-        this.state.page
-      );
-      this.setState({
-        images: [...this.state.images, ...hits],
-        total: totalHits,
-        loading: false,
-      });
-    }
-  }
-
-  handleLoadMore = () => {
-    this.setState(prevState => ({
-      page: prevState.page + 1,
-      loading: true,
-    }));
+  const changeQuery = newQuery => {
+    setQuery(newQuery);
+    setImages([]);
+    setPage(1);
+    setTotal(0);
   };
 
-  render() {
-    console.log('State', this.state.images?.length);
-    return (
-      <>
-        <SearchBar changeQuery={this.changeQuery} />
-        <ImageGallery images={this.state.images} openModal={this.openModal} />
-        {this.state.loading && <Loader />}
-        {PER_PAGE * this.state.page < this.state.total && (
-          <LoadMoreBtn handleLoadMore={this.handleLoadMore} />
-        )}
-        <ModalElement
-          isModalOpen={this.state.isModalOpen}
-          closeModal={this.closeModal}
-          srcDataModal={this.state.srcDataModal}
-          altDataModal={this.state.altDataModal}
-        />
-      </>
-    );
-  }
-}
+  const handleLoadMore = () => {
+    setPage(prevPage => prevPage + 1);
+  };
+
+  useEffect(() => {
+    const fetchImagesEffect = async () => {
+      if (query !== '' && page !== 0) {
+        setLoading(true);
+        const { hits = [], totalHits = 0 } = await fetchImages(query, page);
+        setImages(prevImages => [...prevImages, ...hits]);
+        setTotal(totalHits);
+        setLoading(false);
+      }
+    };
+
+    fetchImagesEffect();
+  }, [query, page]);
+
+  // useEffect(() => {
+  //   if (query !== '' && page !== 0) {
+  //     setLoading(true);
+  //     fetchImages(query, page)
+  //       .then(({ hits = [], totalHits = 0 }) => {
+  //         setImages(prevImages => [...prevImages, ...hits]);
+  //         setTotal(totalHits);
+  //       })
+  //       .finally(() => setLoading(false));
+  //   }
+  // }, [query, page]);
+
+  return (
+    <>
+      <SearchBar changeQuery={changeQuery} />
+      <ImageGallery images={images} openModal={openModal} />
+      {loading && <Loader />}
+      {PER_PAGE * page < total && (
+        <LoadMoreBtn handleLoadMore={handleLoadMore} />
+      )}
+      <ModalElement
+        isModalOpen={isModalOpen}
+        closeModal={closeModal}
+        srcDataModal={modalSrc}
+        altDataModal={modalAlt}
+      />
+    </>
+  );
+};
